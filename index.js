@@ -5,23 +5,7 @@ const { readdirSync, createReadStream, lstatSync, existsSync } = require('fs');
 const { parse: urlParse } = require('url');
 const { resolve, parse: parsePath } = require('path');
 const http = require('http');
-
-const mimeTypes = {
-    ico: { type: 'image/x-icon', show: true },
-    json: { type: 'application/json', show: true },
-    txt: { type: 'text/plain', show: true },
-    css: { type: 'text/css', show: true },
-    png: { type: 'image/png', show: true },
-    jpg: { type: 'image/jpeg', show: true },
-    wav: { type: 'audio/wav', show: false },
-    mp3: { type: 'audio/mpeg', show: false },
-    svg: { type: 'image/svg+xml', show: true },
-    pdf: { type: 'application/pdf', show: false },
-    doc: { type: 'application/msword', show: true },
-    avi: { type: 'video/x-msvideo', show: false },
-    mkv: { type: 'video/x-matroska', show: false },
-    mp4: { type: 'video/mp4', show: false },
-};
+let ignoreDirs = ['.git', 'node_modules', '.vscode', '.idea'];
 
 /**
  * The function scans directory and subdirectories for files.
@@ -34,14 +18,13 @@ const scanDir = (path) => {
     dir.forEach((item) => {
         const currentPath = `${path}/${item}`;
 
-        if (lstatSync(currentPath).isFile()) {
-            if (currentPath !== './index.js') result.push(currentPath.replace(resolve('.'), ''));
-
-            /**
-             * If item isn't a file, call function again and add result to the results
-             */
+        /**
+         * If item isn't a file, call function again and add result to the main results
+         */
+        if (lstatSync(currentPath).isDirectory()) {
+            if (!ignoreDirs.includes(item)) result = [...result, ...scanDir(currentPath)];
         } else {
-            result = [...result, ...scanDir(currentPath)];
+            if (currentPath !== './index.js') result.push(currentPath.replace(resolve('.'), ''));
         }
     });
 
@@ -49,27 +32,15 @@ const scanDir = (path) => {
 };
 
 http.createServer((req, res) => {
-    const result = scanDir(process.env.SCAN_PATH);
-    let html = '';
-
-    result.forEach((item) => {
-        html += `<li class="list-group-item">
-            <a href="${item}" target="_blank">${item.split('/').pop().split('.').slice(0, -1).join('.')}</a>
-        </li>`;
-    });
-
     const parsedUrl = urlParse(req.url);
     const pathname = parsedUrl.pathname;
-    const ext = parsePath(pathname).ext.replace('.', '');
 
-    const contentType = mimeTypes[ext];
-
-    if (contentType) {
+    if (pathname !== '/') {
         try {
             const filePath = resolve(process.env.SCAN_PATH) + pathname;
 
             if (!existsSync(filePath)) {
-                res.writeHead(500);
+                res.writeHead(404);
                 return res.end();
             }
 
@@ -88,6 +59,15 @@ http.createServer((req, res) => {
             console.log(error)
         }
     } else {
+        const result = scanDir(process.env.SCAN_PATH);
+        let html = '';
+
+        result.forEach((item) => {
+            html += `<li class="list-group-item">
+                <a href="${item}" target="_blank">${item}</a>
+            </li>`;
+        });
+
         res.setHeader('Content-type', 'text/html');
         res.write(`<!DOCTYPE html>
             <html lang="en">
