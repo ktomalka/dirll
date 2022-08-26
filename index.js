@@ -24,7 +24,7 @@ const scanDir = (path) => {
         if (lstatSync(currentPath).isDirectory()) {
             if (!ignoreDirs.includes(item)) result = [...result, ...scanDir(currentPath)];
         } else {
-            if (currentPath !== './index.js') result.push(currentPath.replace(resolve('.'), ''));
+            result.push(currentPath.replace(resolve('.'), ''));
         }
     });
 
