@@ -5,6 +5,14 @@ const { readdirSync, createReadStream, lstatSync, existsSync } = require('fs');
 const { parse: urlParse } = require('url');
 const { resolve } = require('path');
 const http = require('http');
+
+const CONFIG = {
+    PORT: Number(process.env.PORT),
+    BASIC_AUTH: process.env.BASIC_AUTH,
+    SCAN_PATH: process.env.SCAN_PATH,
+    ONLY_EXT: process.env.ONLY_EXT?.split(','),
+}
+
 let ignoreDirs = ['.git', 'node_modules', '.vscode', '.idea'];
 
 const formatBytes = (bytes, decimals = 2) => {
@@ -33,14 +41,24 @@ const scanDir = (path) => {
         /**
          * If item isn't a file, call function again and add result to the main results
          */
-        console.log(currentPath, lstatSync(currentPath).size)
         if (lstatSync(currentPath).isDirectory()) {
             if (!ignoreDirs.includes(item)) result = [...result, ...scanDir(currentPath)];
         } else {
-            result.push({
-                path: currentPath.replace(resolve('.'), ''),
-                size: formatBytes(lstatSync(currentPath).size),
-            });
+            if (CONFIG.ONLY_EXT) {
+                CONFIG.ONLY_EXT.forEach((ext) => {
+                    if (currentPath.split('.').pop() === ext) {
+                        result.push({
+                            path: currentPath.replace(resolve('.'), ''),
+                            size: formatBytes(lstatSync(currentPath).size),
+                        });
+                    }
+                });
+            } else {
+                result.push({
+                    path: currentPath.replace(resolve('.'), ''),
+                    size: formatBytes(lstatSync(currentPath).size),
+                });
+            }
         }
     });
 
@@ -49,7 +67,7 @@ const scanDir = (path) => {
 
 http.createServer((req, res) => {
     const basicAuthorization = req.headers['authorization']?.replace('Basic ', '');
-    if (process.env.BASIC_AUTH !== basicAuthorization) {
+    if (CONFIG.BASIC_AUTH !== basicAuthorization) {
         res.statusCode = 401;
         res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
 
@@ -83,12 +101,12 @@ http.createServer((req, res) => {
             console.log(error)
         }
     } else {
-        const result = scanDir(process.env.SCAN_PATH);
+        const result = scanDir(CONFIG.SCAN_PATH);
         let html = '';
 
         result.forEach((item) => {
             html += `<li class="list-group-item">
-                <a href="${item.path}" target="_blank">${item.path} (${item.size})</a>
+                <a href="${item.path}" target="_blank">${item.path} <strong>(${item.size})</strong></a>
             </li>`;
         });
 
@@ -110,4 +128,4 @@ http.createServer((req, res) => {
                 </html>`);
         res.end();
     }
-}).listen(Number(process.env.PORT));
+}).listen(CONFIG.PORT);
