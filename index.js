@@ -7,6 +7,18 @@ const { resolve } = require('path');
 const http = require('http');
 let ignoreDirs = ['.git', 'node_modules', '.vscode', '.idea'];
 
+const formatBytes = (bytes, decimals = 2) => {
+    if (bytes === 0) return '0 B';
+
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
 /**
  * The function scans directory and subdirectories for files.
  */
@@ -21,10 +33,14 @@ const scanDir = (path) => {
         /**
          * If item isn't a file, call function again and add result to the main results
          */
+        console.log(currentPath, lstatSync(currentPath).size)
         if (lstatSync(currentPath).isDirectory()) {
             if (!ignoreDirs.includes(item)) result = [...result, ...scanDir(currentPath)];
         } else {
-            result.push(currentPath.replace(resolve('.'), ''));
+            result.push({
+                path: currentPath.replace(resolve('.'), ''),
+                size: formatBytes(lstatSync(currentPath).size),
+            });
         }
     });
 
@@ -72,7 +88,7 @@ http.createServer((req, res) => {
 
         result.forEach((item) => {
             html += `<li class="list-group-item">
-                <a href="${item}" target="_blank">${item}</a>
+                <a href="${item.path}" target="_blank">${item.path} (${item.size})</a>
             </li>`;
         });
 
@@ -83,7 +99,7 @@ http.createServer((req, res) => {
                     <meta charset="utf-8">
                     <meta name=viewport content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=yes">
                     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
+                    <style>* { word-break: break-word; }</style>
                     <title>DIRLL - List of Files</title>
                 </head>
                 <body>
