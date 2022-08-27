@@ -3,7 +3,7 @@
  */
 const { readdirSync, createReadStream, lstatSync, existsSync } = require('fs');
 const { parse: urlParse } = require('url');
-const { resolve, parse: parsePath } = require('path');
+const { resolve } = require('path');
 const http = require('http');
 let ignoreDirs = ['.git', 'node_modules', '.vscode', '.idea'];
 
@@ -32,6 +32,14 @@ const scanDir = (path) => {
 };
 
 http.createServer((req, res) => {
+    const basicAuthorization = req.headers['authorization']?.replace('Basic ', '');
+    if (process.env.BASIC_AUTH !== basicAuthorization) {
+        res.statusCode = 401;
+        res.setHeader('WWW-Authenticate', 'Basic realm="Secure Area"');
+
+        return res.end('Unauthorized');
+    }
+
     const parsedUrl = urlParse(req.url);
     const pathname = parsedUrl.pathname;
 
