@@ -1,10 +1,17 @@
 /**
  * Internal libraries of Node.js
  */
-const { readdirSync, createReadStream, lstatSync, existsSync } = require('fs');
+const { readdirSync, createReadStream, lstatSync, existsSync, readFileSync } = require('fs');
 const { parse: urlParse } = require('url');
 const { resolve } = require('path');
 const http = require('http');
+const https = require('https');
+
+const certPath = resolve('cert');
+const server = { https: existsSync(certPath) };
+server.type = server.https ? https : http;
+server.certPem = server.https ? readFileSync(resolve('cert/cert.pem')) : undefined;
+server.certKey = server.https ? readFileSync(resolve('cert/cert.key')) : undefined;
 
 const CONFIG = {
     PORT: Number(process.env.PORT),
@@ -65,7 +72,10 @@ const scanDir = (path) => {
     return result;
 };
 
-http.createServer((req, res) => {
+server.type.createServer({
+    cert: server.certPem,
+    key: server.certKey,
+}, (req, res) => {
     const basicAuthorization = req.headers['authorization']?.replace('Basic ', '');
     if (CONFIG.BASIC_AUTH !== basicAuthorization) {
         res.statusCode = 401;
