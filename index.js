@@ -89,7 +89,9 @@ server.type.createServer({
 
     if (pathname !== '/') {
         try {
-            const filePath = resolve(process.env.SCAN_PATH) + pathname;
+            const filePath = (resolve(process.env.SCAN_PATH) + pathname).replace(/%20/ig, ' ');
+
+            console.log(filePath);
 
             if (!existsSync(filePath)) {
                 res.writeHead(404);
