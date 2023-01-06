@@ -89,7 +89,7 @@ server.type.createServer({
 
     if (pathname !== '/') {
         try {
-            const filePath = (resolve(process.env.SCAN_PATH) + pathname).replace(/%20/ig, ' ');
+            const filePath = decodeURIComponent(resolve(process.env.SCAN_PATH) + pathname);
 
             if (!existsSync(filePath)) {
                 res.writeHead(404);
@@ -139,3 +139,4 @@ server.type.createServer({
         res.end();
     }
 }).listen(CONFIG.PORT);
+
